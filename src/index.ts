@@ -32,6 +32,7 @@ function resolveOptions(userOptions: UserOptions): ResolvedOptions {
       extensions: ['vue'],
       exclude: [],
       importMode: defaultImportMode,
+      pageLayout: [] // 在此加入 pageLayout 选项
     },
     userOptions,
   )
@@ -53,8 +54,6 @@ export default function Layout(userOptions: UserOptions = {}): Plugin {
 
   let layoutDirs: string[]
   let pagesDirs: string[]
-
-  // const pagesDirs = resolveDirs(options.pagesDirs, config.root)
 
   return {
     name: 'vite-plugin-vue-layouts',
@@ -78,8 +77,6 @@ export default function Layout(userOptions: UserOptions = {}): Plugin {
           }
         }
       }
-
-//       const absolutePagesDir = options.pagesDir ? normalizePath(resolve(process.cwd(), options.pagesDir)) : null
 
       const updateVirtualModule = (path: string) => {
         path = normalizePath(path)
@@ -115,7 +112,7 @@ export default function Layout(userOptions: UserOptions = {}): Plugin {
         const container: FileContainer[] = []
 
         for (const dir of layoutDirs) {
-          const layoutsDirPath = dir.substr(0, 1) === '/'
+          const layoutsDirPath = dir.startsWith('/')
             ? normalizePath(dir)
             : normalizePath(resolve(config.root, dir))
 
@@ -141,6 +138,7 @@ export function ClientSideLayout(options?: clientSideOptions): Plugin {
     layoutDir = 'src/layouts',
     defaultLayout = 'default',
     importMode = process.env.VITE_SSG ? 'sync' : 'async',
+    // pageLayout = [],
   } = options || {}
   return {
     name: 'vite-plugin-vue-layouts',
@@ -158,6 +156,7 @@ export function ClientSideLayout(options?: clientSideOptions): Plugin {
           layoutDir,
           importMode,
           defaultLayout,
+          // pageLayout
         });
       }
     },
@@ -167,11 +166,11 @@ export function ClientSideLayout(options?: clientSideOptions): Plugin {
 function canEnableClientLayout(options: UserOptions) {
   const keys = Object.keys(options)
 
-  // Non isomorphic options
-  if (keys.length > 2 || keys.some(key => !['layoutDirs', 'defaultLayout'].includes(key))) {
+  // Non-isomorphic options
+  if (keys.length > 2 || keys.some(key => !['layoutsDirs', 'defaultLayout'].includes(key))) {
     return false
   }
-  //  arrays and glob cannot be isomorphic either
+  // arrays and glob cannot be isomorphic either
   if (options.layoutsDirs && (Array.isArray(options.layoutsDirs) || options.layoutsDirs.includes("*"))) {
     return false
   }

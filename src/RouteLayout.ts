@@ -6,20 +6,27 @@ ${importCode}
 export const createGetRoutes = (router, withLayout = false) => {
   const routes = router.getRoutes()
   if (withLayout) {
-      return routes
+    return routes
   }
   return () => routes.filter(route => !route.meta.isLayout)
+}
+
+function findPageLayout(path, pageLayout) {
+  return pageLayout.find(({ path: p }) => p.endsWith('/') && p.length>1 ? path.startsWith(p.slice(0, -1)) : path === p)?.layout;
 }
 
 export function setupLayouts(routes) {
   function deepSetupLayout(routes, top = true) {
     return routes.map(route => {
+      // console.log("route.children", route.children);
       if (route.children?.length > 0) {
         route.children = deepSetupLayout(route.children, false)
       }
       
+      const matchedLayout = findPageLayout(route.name, ${JSON.stringify(options.pageLayout)})
+      console.log("route.path, route.name, matchedLayout: ", route.path, route.name, matchedLayout, route.meta?.layout);
+
       if (top) {
-        // unplugin-vue-router adds a top-level route to the routing group, which we should skip.
         const skipLayout = !route.component && route.children?.find(r => (r.path === '' || r.path === '/') && r.meta?.isLayout)  
 
         if (skipLayout) {
@@ -29,7 +36,7 @@ export function setupLayouts(routes) {
         if (route.meta?.layout !== false) {
           return { 
             path: route.path,
-            component: layouts[route.meta?.layout || '${options.defaultLayout}'],
+            component: layouts[matchedLayout || route.meta?.layout || '${options.defaultLayout}'],
             children: route.path === '/' ? [route] : [{...route, path: ''}],
             meta: {
               isLayout: true
@@ -38,10 +45,10 @@ export function setupLayouts(routes) {
         }
       }
 
-      if (route.meta?.layout) {
+      if (!!matchedLayout || route.meta?.layout) {
         return { 
           path: route.path,
-          component: layouts[route.meta?.layout],
+          component: layouts[matchedLayout || route.meta?.layout],
           children: [ {...route, path: ''} ],
           meta: {
             isLayout: true

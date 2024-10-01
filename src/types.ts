@@ -30,6 +30,11 @@ interface Options {
    * Mode for importing layouts
    */
   importMode: (name: string) => 'sync' | 'async'
+  /**
+   * 页面对应的布局配置
+   * @example [{ path: '/index/index', layout: 'main' }]
+   */
+   pageLayout?: { path: string, layout: string }[] // 添加 pageLayout 类型定义
 }
 
 export type FileContainer = {
