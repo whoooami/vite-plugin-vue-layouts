@@ -22,6 +22,13 @@ meta:
   layout: users
 </route>
 ```
+```jsx
+export default {
+  name: 'InviteShare',
+  layout: 'home',
+  setup() {}
+}
+```
 
 
 ## Getting Started

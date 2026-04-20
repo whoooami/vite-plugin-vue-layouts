@@ -1,10 +1,11 @@
+import fs from 'fs'
 import { resolve } from 'path'
 import type { ModuleNode, Plugin, ResolvedConfig } from 'vite'
 import { createVirtualModuleCode } from './clientSide'
 import { getFilesFromPath } from './files'
 import { getImportCode } from './importCode'
 import getClientCode from './RouteLayout'
-import { debug, normalizePath, resolveDirs } from './utils'
+import { debug, normalizePath, resolveDirs, scanJsxPages } from './utils'
 
 import type {
   clientSideOptions,
@@ -55,6 +56,8 @@ export default function Layout(userOptions: UserOptions = {}): Plugin {
   let layoutDirs: string[]
   let pagesDirs: string[]
 
+  // const pagesDirs = resolveDirs(options.pagesDirs, config.root)
+
   return {
     name: 'vite-plugin-vue-layouts',
     enforce: 'pre',
@@ -77,6 +80,8 @@ export default function Layout(userOptions: UserOptions = {}): Plugin {
           }
         }
       }
+
+//       const absolutePagesDir = options.pagesDir ? normalizePath(resolve(process.cwd(), options.pagesDir)) : null
 
       const updateVirtualModule = (path: string) => {
         path = normalizePath(path)
@@ -122,10 +127,30 @@ export default function Layout(userOptions: UserOptions = {}): Plugin {
           container.push({ path: layoutsDirPath, files: _f })
         }
 
+        // --- 使用 Vite 原生工具扫描 JSX ---
+        const jsxPages: { path: string; layout: string }[] = []
+        for (const pageDir of pagesDirs) {
+          const fullPageDir = pageDir.startsWith('/')
+            ? pageDir
+            : resolve(config.root, pageDir)
+          
+          const found = await scanJsxPages(fullPageDir, config.root)
+          jsxPages.push(...found)
+        }
+
+        // --- 注入 Node 端调试日志 ---
+    // console.log('\n[Vite-Layouts-Debug] 扫描到的 JSX 页面布局映射:');
+    // console.table(jsxPages); 
+    // -------------------------
+        
+        // 注入到 options 中供 RouteLayout.ts 使用
+        options.pageLayout = jsxPages 
+        // ---------------------------------
+
         const importCode = getImportCode(container, options)
 
         const clientCode = getClientCode(importCode, options)
-
+        fs.writeFileSync(resolve(config.root, 'debug_layout.js'), clientCode);
         debug('Client code: %O', clientCode)
         return clientCode
       }
@@ -156,7 +181,6 @@ export function ClientSideLayout(options?: clientSideOptions): Plugin {
           layoutDir,
           importMode,
           defaultLayout,
-          // pageLayout
         });
       }
     },
@@ -166,11 +190,11 @@ export function ClientSideLayout(options?: clientSideOptions): Plugin {
 function canEnableClientLayout(options: UserOptions) {
   const keys = Object.keys(options)
 
-  // Non-isomorphic options
-  if (keys.length > 2 || keys.some(key => !['layoutsDirs', 'defaultLayout'].includes(key))) {
+  // Non isomorphic options
+  if (keys.length > 2 || keys.some(key => !['layoutDirs', 'defaultLayout'].includes(key))) {
     return false
   }
-  // arrays and glob cannot be isomorphic either
+  //  arrays and glob cannot be isomorphic either
   if (options.layoutsDirs && (Array.isArray(options.layoutsDirs) || options.layoutsDirs.includes("*"))) {
     return false
   }
@@ -179,3 +203,4 @@ function canEnableClientLayout(options: UserOptions) {
 }
 
 export * from './types'
+
